@@ -25,6 +25,13 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 		userID := strings.TrimSuffix(path, "/")
 
 		fmt.Println(userID)
+		fmt.Println(r.URL.Query())
+		queryParams := r.URL.Query()
+		sortby := queryParams.Get("sortby")
+		key := queryParams.Get("key")
+		sortorder := queryParams.Get("sortorder")
+
+		fmt.Printf("Sort by: %v, Sort order: %v, Key: %v\n", sortby, sortorder, key)
 	}
 }
 
