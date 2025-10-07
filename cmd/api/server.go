@@ -78,6 +78,24 @@ func main() {
 			}
 			fmt.Println("Unmarshalled JSON into a map", response1)
 
+			fmt.Println("Body:", r.Body)
+			fmt.Println("Body:", r.Form)
+			fmt.Println("Header:", r.Header)
+			fmt.Println("Context:", r.Context())
+			fmt.Println("ContextLength:", r.ContentLength)
+			fmt.Println("Host:", r.Host)
+			fmt.Println("Method:", r.Method)
+			fmt.Println("Protocol:", r.Proto)
+			fmt.Println("Remote Addr:", r.RemoteAddr)
+			fmt.Println("Request URI:", r.RequestURI)
+			fmt.Println("TLS:", r.TLS)
+			fmt.Println("Trailer:", r.Trailer)
+			fmt.Println("Transfer Encoding:", r.TransferEncoding)
+			fmt.Println("URL:", r.URL)
+			fmt.Println("User Agent:", r.UserAgent())
+			fmt.Println("Port:", r.URL.Port())
+			fmt.Println("Scheme:", r.URL.Scheme)
+
 		case http.MethodPut:
 			w.Write([]byte("Hello PUT Method"))
 		case http.MethodPatch:
