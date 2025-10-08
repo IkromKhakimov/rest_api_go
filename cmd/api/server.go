@@ -66,7 +66,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:      port,
-		Handler:   mux,
+		Handler:   mw.ResponseTimeMiddleware(mux),
 		TLSConfig: tlsConfig,
 	}
 
