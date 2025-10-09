@@ -2,11 +2,12 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	mw "restapi/internal/api/middlewares"
-	"strings"
+	"sync"
 )
 
 //type user struct {
@@ -15,6 +16,60 @@ import (
 //	City string `json:"city"`
 //}
 
+type Teacher struct {
+	ID        int
+	FirstName string
+	LastName  string
+	Class     string
+	Subject   string
+}
+
+var teachers = make(map[int]Teacher)
+var mutex = &sync.Mutex{}
+var nextID = 1
+
+func init() {
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "John",
+		LastName:  "Doe",
+		Class:     "9A",
+		Subject:   "Math",
+	}
+	nextID++
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "Jane",
+		LastName:  "Smith",
+		Class:     "10A",
+		Subject:   "Algebra",
+	}
+}
+
+func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
+	firstName := r.URL.Query().Get("first_name")
+	lastName := r.URL.Query().Get("last_name")
+
+	teacherList := make([]Teacher, 0, len(teachers))
+	for _, teacher := range teachers {
+		if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+			teacherList = append(teacherList, teacher)
+		}
+	}
+	response := struct {
+		Status string    `json:"status"`
+		Count  int       `json:"count"`
+		Data   []Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(teachers),
+		Data:   teacherList,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 }
@@ -22,18 +77,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 func teacherHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		fmt.Println(r.URL.Path)
-		path := strings.TrimPrefix(r.URL.Path, "/teachers/")
-		userID := strings.TrimSuffix(path, "/")
-
-		fmt.Println(userID)
-		fmt.Println(r.URL.Query())
-		queryParams := r.URL.Query()
-		sortby := queryParams.Get("sortby")
-		key := queryParams.Get("key")
-		sortorder := queryParams.Get("sortorder")
-
-		fmt.Printf("Sort by: %v, Sort order: %v, Key: %v\n", sortby, sortorder, key)
+		getTeachersHandler(w, r)
 	}
 }
 
