@@ -19,11 +19,11 @@ import (
 //}
 
 type Teacher struct {
-	ID        int
-	FirstName string
-	LastName  string
-	Class     string
-	Subject   string
+	ID        int    `json:"id,omitempty"`
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Class     string `json:"class,omitempty"`
+	Subject   string `json:"subject,omitempty"`
 }
 
 var teachers = make(map[int]Teacher)
@@ -54,6 +54,7 @@ func init() {
 		Class:     "11A",
 		Subject:   "Biology",
 	}
+	nextID++
 }
 
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +90,7 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 	// Handle Path parameter
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Fatal error:", err)
 		return
 	}
 
@@ -102,14 +103,49 @@ func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var newTeachers []Teacher
+	err := json.NewDecoder(r.Body).Decode(&newTeachers)
+	if err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+	}
+
+	addedTeachers := make([]Teacher, len(newTeachers))
+	for i, newTeacher := range newTeachers {
+		newTeacher.ID = nextID
+		teachers[nextID] = newTeacher
+		addedTeachers[i] = newTeacher
+		nextID++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	response := struct {
+		Status string    `json:"status"`
+		Count  int       `json:"count"`
+		Data   []Teacher `json:"data"`
+	}{
+		Status: "success",
+		Count:  len(addedTeachers),
+		Data:   addedTeachers,
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
 func teacherHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.Method)
 	switch r.Method {
 	case http.MethodGet:
 		getTeachersHandler(w, r)
+	case http.MethodPost:
+		addTeacherHandler(w, r)
 	}
 }
 
@@ -141,7 +177,7 @@ func main() {
 
 	mux.HandleFunc("/", rootHandler)
 
-	mux.HandleFunc("/teachers/", teacherHandler)
+	mux.HandleFunc("/teachers", teacherHandler)
 
 	mux.HandleFunc("/students", studentsHandler)
 
