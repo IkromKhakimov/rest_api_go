@@ -43,7 +43,17 @@ func studentsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func execsHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		fmt.Println("Query:", r.URL.Query())
+		fmt.Println("name:", r.URL.Query().Get("name"))
 
+		err := r.ParseForm()
+		if err != nil {
+			return
+		}
+		fmt.Println("Form from POST methods:", err)
+	}
 }
 
 func main() {
@@ -54,13 +64,13 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	http.HandleFunc("/", rootHandler)
+	mux.HandleFunc("/", rootHandler)
 
-	http.HandleFunc("/teachers/", teacherHandler)
+	mux.HandleFunc("/teachers/", teacherHandler)
 
-	http.HandleFunc("/students", studentsHandler)
+	mux.HandleFunc("/students", studentsHandler)
 
-	http.HandleFunc("/execs/", execsHandler)
+	mux.HandleFunc("/execs/", execsHandler)
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
@@ -68,9 +78,18 @@ func main() {
 
 	rl := mw.NewRateLimiter(5, time.Minute)
 
+	hppOptions := mw.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	}
+
+	secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mux)))
+
 	server := &http.Server{
 		Addr:      port,
-		Handler:   rl.Middleware(mw.ResponseTimeMiddleware(mux)),
+		Handler:   secureMux,
 		TLSConfig: tlsConfig,
 	}
 
