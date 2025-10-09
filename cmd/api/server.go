@@ -7,14 +7,13 @@ import (
 	"net/http"
 	mw "restapi/internal/api/middlewares"
 	"strings"
-	"time"
 )
 
-type user struct {
-	Name string `json:"name"`
-	Age  string `json:"age"`
-	City string `json:"city"`
-}
+//type user struct {
+//	Name string `json:"name"`
+//	Age  string `json:"age"`
+//	City string `json:"city"`
+//}
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -76,16 +75,18 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	rl := mw.NewRateLimiter(5, time.Minute)
+	//rl := mw.NewRateLimiter(5, time.Minute)
+	//
+	//hppOptions := mw.HPPOptions{
+	//	CheckQuery:                  true,
+	//	CheckBody:                   true,
+	//	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+	//	Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	//}
 
-	hppOptions := mw.HPPOptions{
-		CheckQuery:                  true,
-		CheckBody:                   true,
-		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	}
-
-	secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))
+	//secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))
+	//secureMux := applyMiddlewares(mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware)
+	secureMux := mw.SecurityHeaders(mux)
 
 	server := &http.Server{
 		Addr:      port,
@@ -98,4 +99,13 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error starting server:", err)
 	}
+}
+
+type Middleware func(handler http.Handler) http.Handler
+
+func ApplyMiddlewares(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for _, middleware := range middlewares {
+		handler = middleware(handler)
+	}
+	return handler
 }
