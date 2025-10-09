@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	mw "restapi/internal/api/middlewares"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -44,30 +46,60 @@ func init() {
 		Class:     "10A",
 		Subject:   "Algebra",
 	}
+	nextID++
+	teachers[nextID] = Teacher{
+		ID:        nextID,
+		FirstName: "Jane",
+		LastName:  "Smith",
+		Class:     "11A",
+		Subject:   "Biology",
+	}
 }
 
 func getTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	firstName := r.URL.Query().Get("first_name")
-	lastName := r.URL.Query().Get("last_name")
 
-	teacherList := make([]Teacher, 0, len(teachers))
-	for _, teacher := range teachers {
-		if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-			teacherList = append(teacherList, teacher)
+	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := strings.TrimSuffix(path, "/")
+	fmt.Println(idStr)
+
+	if idStr == "" {
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+
+		teacherList := make([]Teacher, 0, len(teachers))
+		for _, teacher := range teachers {
+			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+				teacherList = append(teacherList, teacher)
+			}
 		}
-	}
-	response := struct {
-		Status string    `json:"status"`
-		Count  int       `json:"count"`
-		Data   []Teacher `json:"data"`
-	}{
-		Status: "success",
-		Count:  len(teachers),
-		Data:   teacherList,
+		response := struct {
+			Status string    `json:"status"`
+			Count  int       `json:"count"`
+			Data   []Teacher `json:"data"`
+		}{
+			Status: "success",
+			Count:  len(teachers),
+			Data:   teacherList,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Handle Path parameter
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	teacher, exists := teachers[id]
+	if !exists {
+		http.Error(w, "Teacher not found", http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(teacher)
+
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
