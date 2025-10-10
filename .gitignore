@@ -1,1 +1,29 @@
 .idea
+
+# If you prefer the allow list template instead of the deny list,
+# https://github.com/github/gitignore/blob/main/community/Golang/
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.gitignore
+openss1.cnf
+
+# Test binary, built with 'go test -c'
+*.test
+
+# Output of the go coverage tool, specifically when used with Lit
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
