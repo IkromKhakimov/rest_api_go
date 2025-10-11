@@ -10,7 +10,7 @@ func Router() *http.ServeMux {
 
 	mux.HandleFunc("/", handlers.RootHandler)
 
-	mux.HandleFunc("/teachers", handlers.TeacherHandler)
+	mux.HandleFunc("/teachers/", handlers.TeacherHandler)
 
 	mux.HandleFunc("/students", handlers.StudentsHandler)
 
