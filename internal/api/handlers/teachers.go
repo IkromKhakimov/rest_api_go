@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
 	"strconv"
@@ -301,18 +302,40 @@ func patchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//for k, v := range updates {
+	//	switch k {
+	//	case "first_name":
+	//		existingTeacher.FirstName = v.(string)
+	//	case "last_name":
+	//		existingTeacher.LastName = v.(string)
+	//	case "email":
+	//		existingTeacher.Email = v.(string)
+	//	case "class":
+	//		existingTeacher.Class = v.(string)
+	//	case "subject":
+	//		existingTeacher.Subject = v.(string)
+	//	}
+	//}
+
+	// Apply updates using reflect
+	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
+	teacherType := teacherVal.Type()
+	fmt.Println("Teacher Val:", teacherVal.Type().Field(1))
+
 	for k, v := range updates {
-		switch k {
-		case "first_name":
-			existingTeacher.FirstName = v.(string)
-		case "last_name":
-			existingTeacher.LastName = v.(string)
-		case "email":
-			existingTeacher.Email = v.(string)
-		case "class":
-			existingTeacher.Class = v.(string)
-		case "subject":
-			existingTeacher.Subject = v.(string)
+		for i := 0; i < teacherVal.NumField(); i++ {
+			fmt.Println("k from reflect mechanism", k)
+			field := teacherType.Field(i)
+			fmt.Println(field.Tag.Get("json"))
+			if field.Tag.Get("json") == k+",omitempty" {
+				if teacherVal.Field(i).CanSet() {
+					fieldVal := teacherVal.Field(i)
+					fmt.Println("fieldVal:", fieldVal)
+					fmt.Println("teacherVal.Field(i).Type():", teacherVal.Field(i).Type())
+					fmt.Println("reflect.ValueOf(v):", reflect.ValueOf(v))
+					fieldVal.Set(reflect.ValueOf(v).Convert(teacherVal.Field(i).Type()))
+				}
+			}
 		}
 	}
 
