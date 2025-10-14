@@ -376,11 +376,14 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		fmt.Println(id)
+
 		var teacherFromDb models.Teacher
 		err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&teacherFromDb.ID, &teacherFromDb.FirstName, &teacherFromDb.LastName, &teacherFromDb.Email, &teacherFromDb.Class, &teacherFromDb.Subject)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				tx.Rollback()
+				fmt.Println(err)
 				http.Error(w, "Teacher not found", http.StatusInternalServerError)
 			}
 			http.Error(w, "Error retrieving teacher", http.StatusInternalServerError)
@@ -415,6 +418,7 @@ func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
 
 		_, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", teacherFromDb.FirstName, teacherFromDb.LastName, teacherFromDb.Email, teacherFromDb.Class, teacherFromDb.Subject, teacherFromDb.ID)
 		if err != nil {
+			fmt.Println(err)
 			tx.Rollback()
 			http.Error(w, "Error updating teacher", http.StatusInternalServerError)
 			return
