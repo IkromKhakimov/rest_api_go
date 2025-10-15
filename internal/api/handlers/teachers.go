@@ -65,7 +65,7 @@ func AddTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
 	addedTeachers, err := sqlconnect.AddTeachersDbHandler(newTeachers)
 	if err != nil {
-		log.Println(err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
