@@ -101,8 +101,9 @@ func UpdateTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if UpdateTeacher(w, err, id, updatedTeacher) {
-		return
+	updatedTeacher, err = sqlconnect.UpdateTeacher(id, updatedTeacher)
+	if err != nil {
+		log.Println(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -197,93 +198,16 @@ func PatchTeachersHandlerOld(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /teachers
 func PatchTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	db, err := sqlconnect.ConnectDb()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-	}
-	defer db.Close()
 
 	var updates []map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&updates)
+	err := json.NewDecoder(r.Body).Decode(&updates)
 	if err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	tx, err := db.Begin()
+	err = sqlconnect.PatchTeachers(updates)
 	if err != nil {
-		log.Println(err)
-		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
-		return
-	}
-
-	for _, update := range updates {
-		idStr, ok := update["id"].(string)
-		if !ok {
-			tx.Rollback()
-			http.Error(w, "Invalid teacher ID in update", http.StatusBadRequest)
-			return
-		}
-		id, err := strconv.Atoi(idStr)
-		if err != nil {
-			tx.Rollback()
-			http.Error(w, "Invalid teacher ID in update", http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println(id)
-
-		var teacherFromDb models.Teacher
-		err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&teacherFromDb.ID, &teacherFromDb.FirstName, &teacherFromDb.LastName, &teacherFromDb.Email, &teacherFromDb.Class, &teacherFromDb.Subject)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				tx.Rollback()
-				fmt.Println(err)
-				http.Error(w, "Teacher not found", http.StatusInternalServerError)
-			}
-			http.Error(w, "Error retrieving teacher", http.StatusInternalServerError)
-			return
-		}
-
-		// Apply updates using reflection
-		teacherVal := reflect.ValueOf(&teacherFromDb).Elem()
-		teacherType := teacherVal.Type()
-
-		for k, v := range update {
-			if k == "id" {
-				continue // skip updating the id field
-			}
-			for i := 0; i < teacherVal.NumField(); i++ {
-				field := teacherType.Field(i)
-				if field.Tag.Get("json") == k+",omitempty" {
-					fieldVal := teacherVal.Field(i)
-					if fieldVal.CanSet() {
-						val := reflect.ValueOf(v)
-						if val.Type().ConvertibleTo(fieldVal.Type()) {
-							fieldVal.Set(val.Convert(fieldVal.Type()))
-						} else {
-							tx.Rollback()
-							log.Printf("Cannot convert %v to %v", val.Type(), fieldVal.Type())
-						}
-					}
-					break
-				}
-			}
-		}
-
-		_, err = tx.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", teacherFromDb.FirstName, teacherFromDb.LastName, teacherFromDb.Email, teacherFromDb.Class, teacherFromDb.Subject, teacherFromDb.ID)
-		if err != nil {
-			fmt.Println(err)
-			tx.Rollback()
-			http.Error(w, "Error updating teacher", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		http.Error(w, "Error commiting transaction", http.StatusInternalServerError)
 		return
 	}
 
@@ -308,68 +232,9 @@ func PatchOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sqlconnect.ConnectDb()
+	existingTeacher, err := sqlconnect.PatchOneTeacher(id, updates)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	var existingTeacher models.Teacher
-	err = db.QueryRow("SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE id = ?", id).Scan(&existingTeacher.ID, &existingTeacher.FirstName, &existingTeacher.LastName, &existingTeacher.Email, &existingTeacher.Class, &existingTeacher.Subject)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Teacher not found", http.StatusNotFound)
-			return
-		}
-		fmt.Println(err)
-		http.Error(w, "Unable to retrieve data", http.StatusInternalServerError)
-		return
-	}
-
-	//for k, v := range updates {
-	//	switch k {
-	//	case "first_name":
-	//		existingTeacher.FirstName = v.(string)
-	//	case "last_name":
-	//		existingTeacher.LastName = v.(string)
-	//	case "email":
-	//		existingTeacher.Email = v.(string)
-	//	case "class":
-	//		existingTeacher.Class = v.(string)
-	//	case "subject":
-	//		existingTeacher.Subject = v.(string)
-	//	}
-	//}
-
-	// Apply updates using reflect
-	teacherVal := reflect.ValueOf(&existingTeacher).Elem()
-	teacherType := teacherVal.Type()
-	fmt.Println("Teacher Val:", teacherVal.Type().Field(1))
-
-	for k, v := range updates {
-		for i := 0; i < teacherVal.NumField(); i++ {
-			fmt.Println("k from reflect mechanism", k)
-			field := teacherType.Field(i)
-			fmt.Println(field.Tag.Get("json"))
-			if field.Tag.Get("json") == k+",omitempty" {
-				if teacherVal.Field(i).CanSet() {
-					fieldVal := teacherVal.Field(i)
-					fmt.Println("fieldVal:", fieldVal)
-					fmt.Println("teacherVal.Field(i).Type():", teacherVal.Field(i).Type())
-					fmt.Println("reflect.ValueOf(v):", reflect.ValueOf(v))
-					fieldVal.Set(reflect.ValueOf(v).Convert(teacherVal.Field(i).Type()))
-				}
-			}
-		}
-	}
-
-	_, err = db.Exec("UPDATE teachers SET first_name = ?, last_name = ?, email = ?, class = ?, subject = ? WHERE id = ?", existingTeacher.FirstName, existingTeacher.LastName, existingTeacher.Email, existingTeacher.Class, existingTeacher.Subject, existingTeacher.ID)
-	if err != nil {
-		fmt.Println(err)
-		http.Error(w, "Error updating teacher", http.StatusInternalServerError)
 		return
 	}
 
@@ -386,32 +251,13 @@ func DeleteOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := sqlconnect.ConnectDb()
+	err = sqlconnect.DeleteOneTeacher(id)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	result, err := db.Exec("DELETE FROM teachers WHERE id = ?", id)
-	if err != nil {
-		http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Println(result.RowsAffected())
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
-		return
-	}
-
-	if rowsAffected == 0 {
-		http.Error(w, "Teacher not found", http.StatusNotFound)
-		return
-	}
-
+	// Alternative Apporch
 	//w.WriteHeader(http.StatusNoContent)
 
 	// Response Body
@@ -427,77 +273,18 @@ func DeleteOneTeacherHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteTeachersHandler(w http.ResponseWriter, r *http.Request) {
-	db, err := sqlconnect.ConnectDb()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Unable to connect to database", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
 
 	var ids []int
-	json.NewDecoder(r.Body).Decode(&ids)
+	err := json.NewDecoder(r.Body).Decode(&ids)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
-	tx, err := db.Begin()
+	deletedIds, err := sqlconnect.DeleteTeachers(ids)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Error starting transaction", http.StatusInternalServerError)
-	}
-
-	stmt, err := tx.Prepare("DELETE FROM teachers WHERE id = ?")
-	if err != nil {
-		log.Println(err)
-		tx.Rollback()
-		http.Error(w, "Error preparing delete statement", http.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	deletedIds := []int{}
-
-	for _, id := range ids {
-		result, err := stmt.Exec(id)
-		if err != nil {
-			tx.Rollback()
-			log.Println(err)
-			http.Error(w, "Error deleting teacher", http.StatusInternalServerError)
-			return
-		}
-
-		rowsAffected, err := result.RowsAffected()
-		if err != nil {
-			tx.Rollback()
-			http.Error(w, "Error retrieving deleted result", http.StatusInternalServerError)
-			return
-		}
-
-		// if teacher was deleted then add the ID to the deletedIDs slice
-		if rowsAffected > 0 {
-			deletedIds = append(deletedIds, id)
-		}
-
-		if rowsAffected < 1 {
-			tx.Rollback()
-			http.Error(w, fmt.Sprintf("ID does not exist", id), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Commit
-	err = tx.Commit()
-	if err != nil {
-		log.Println(err)
-		http.Error(w, "Error committing transaction", http.StatusInternalServerError)
-		return
-	}
-
-	if len(deletedIds) < 1 {
-		http.Error(w, "IDs do not exist", http.StatusBadRequest)
 		return
 	}
 
