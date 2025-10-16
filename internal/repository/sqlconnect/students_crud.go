@@ -9,6 +9,7 @@ import (
 	"restapi/internal/models"
 	"restapi/pkg/utils"
 	"strconv"
+	"strings"
 )
 
 func GetStudentsDbHandler(students []models.Student, r *http.Request) ([]models.Student, error) {
@@ -69,14 +70,15 @@ func GetStudentByID(id int) (models.Student, error) {
 func AddStudentDbHandler(newStudents []models.Student) ([]models.Student, error) {
 	db, err := ConnectDb()
 	if err != nil {
-		return nil, utils.ErrorHandler(err, "error retrieving data")
+		return nil, utils.ErrorHandler(err, "error retrieving data 1")
 	}
 	defer db.Close()
 
 	//stmt, err := db.Prepare("INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)")
 	stmt, err := db.Prepare(utils.GenerateInsertQuery("students", models.Student{}))
+	fmt.Println(utils.GenerateInsertQuery("students", models.Student{}))
 	if err != nil {
-		return nil, utils.ErrorHandler(err, "error retrieving data")
+		return nil, utils.ErrorHandler(err, "error retrieving data 2")
 	}
 	defer stmt.Close()
 
@@ -87,6 +89,9 @@ func AddStudentDbHandler(newStudents []models.Student) ([]models.Student, error)
 		res, err := stmt.Exec(values...)
 		if err != nil {
 			//http.Error(w, "Error inserting data into database", http.StatusInternalServerError)
+			if strings.Contains(err.Error(), "a foreign key constraint fails") {
+				return nil, utils.ErrorHandler(err, "class/class teacher does not exist")
+			}
 			return nil, utils.ErrorHandler(err, "error retrieving data")
 		}
 		lastID, err := res.LastInsertId()

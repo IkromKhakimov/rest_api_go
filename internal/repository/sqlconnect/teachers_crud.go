@@ -9,7 +9,6 @@ import (
 	"restapi/internal/models"
 	"restapi/pkg/utils"
 	"strconv"
-	"strings"
 )
 
 func GetTeachersDbHandler(teachers []models.Teacher, r *http.Request) ([]models.Teacher, error) {
@@ -23,8 +22,8 @@ func GetTeachersDbHandler(teachers []models.Teacher, r *http.Request) ([]models.
 	query := "SELECT id, first_name, last_name, email, class, subject FROM teachers WHERE 1=1"
 	var args []interface{}
 
-	query, args = addFilters(r, query, args)
-	query = addSorting(r, query)
+	query, args = utils.AddFilters(r, query, args)
+	query = utils.AddSorting(r, query)
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -75,7 +74,7 @@ func AddTeachersDbHandler(newTeachers []models.Teacher) ([]models.Teacher, error
 	defer db.Close()
 
 	//stmt, err := db.Prepare("INSERT INTO teachers (first_name, last_name, email, class, subject) VALUES (?,?,?,?,?)")
-	stmt, err := db.Prepare(generateInsertQuery(models.Teacher{}))
+	stmt, err := db.Prepare(utils.GenerateInsertQuery("teachers", models.Teacher{}))
 	if err != nil {
 		return nil, utils.ErrorHandler(err, "error retrieving data")
 	}
@@ -84,7 +83,7 @@ func AddTeachersDbHandler(newTeachers []models.Teacher) ([]models.Teacher, error
 	addedTeachers := make([]models.Teacher, len(newTeachers))
 	for i, newTeacher := range newTeachers {
 		//res, err := stmt.Exec(newTeacher.FirstName, newTeacher.LastName, newTeacher.Email, newTeacher.Class, newTeacher.Subject)
-		values := getStructValues(newTeacher)
+		values := utils.GetStructValues(newTeacher)
 		res, err := stmt.Exec(values...)
 		if err != nil {
 			//http.Error(w, "Error inserting data into database", http.StatusInternalServerError)
