@@ -370,3 +370,36 @@ func DeleteTeachers(ids []int) ([]int, error) {
 	}
 	return deletedIds, nil
 }
+
+func GetStudentsByTeacherIdDb(teacherId string, students []models.Student) ([]models.Student, error) {
+	db, err := ConnectDb()
+	if err != nil {
+		log.Println(err)
+		return nil, utils.ErrorHandler(err, "Error")
+	}
+	defer db.Close()
+
+	query := `SELECT id, first_name, last_name, email, class FROM students WHERE class = (SELECT class from teachers WHERE id = ?)`
+	rows, err := db.Query(query, teacherId)
+	if err != nil {
+		log.Println(err)
+		return nil, utils.ErrorHandler(err, "Error")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var student models.Student
+		rows.Scan(&student.ID, &student.FirstName, &student.LastName, &student.Email, &student.Class)
+		if err != nil {
+			log.Println(err)
+			return nil, utils.ErrorHandler(err, "Error")
+		}
+		students = append(students, student)
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Println(err)
+		return nil, utils.ErrorHandler(err, "Error")
+	}
+	return students, nil
+}
