@@ -45,7 +45,7 @@ func main() {
 
 	//secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))
 	//secureMux := utils.ApplyMiddlewares((mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware)
-	router := router.Router()
+	router := router.MainRouter()
 	secureMux := mw.SecurityHeaders(router)
 
 	server := &http.Server{
