@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"restapi/internal/models"
 	"restapi/internal/repository/sqlconnect"
+	"restapi/pkg/utils"
 	"strconv"
 )
 
@@ -310,4 +311,44 @@ func DeleteExecHandler(w http.ResponseWriter, r *http.Request) {
 		DeletedIDs: deletedIds,
 	}
 	json.NewEncoder(w).Encode(response)
+}
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var req = models.Exec{}
+	// Data Validation
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Username == "" || req.Password == "" {
+		http.Error(w, "Username or password are required", http.StatusBadRequest)
+		return
+	}
+
+	// Search for user if user actually exist
+	db, err := sqlconnect.ConnectDb()
+	if err != nil {
+		utils.ErrorHandler(err, "error updating data")
+		return
+	}
+	defer db.Close()
+
+	user := models.Exec{}
+	err = db.QueryRow("SELECT id, first_name, last_name, email, username, password, inactive_status, role FROM execs WHERE username = ?", req.Username).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.Username, &user.Password, &user.InactiveStatus, &user.Role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.ErrorHandler(err, "user not found")
+			http.Error(w, "Username and password are required", http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "database query error", http.StatusBadRequest)
+		return
+	}
+
+	// Is user active
+	// Verify password
+	// Generate token
+	// Send token as a response or as a cookie
 }
