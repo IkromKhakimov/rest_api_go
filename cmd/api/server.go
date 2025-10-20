@@ -48,7 +48,8 @@ func main() {
 	//secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))
 	//secureMux := utils.ApplyMiddlewares((mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware)
 	router := router.MainRouter()
-	secureMux := mw.JWTMiddleware(mw.SecurityHeaders(router))
+	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login")
+	secureMux := jwtMiddleware(mw.SecurityHeaders(router))
 	//secureMux := mw.SecurityHeaders(router)
 
 	server := &http.Server{
