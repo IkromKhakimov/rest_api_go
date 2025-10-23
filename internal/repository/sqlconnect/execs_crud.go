@@ -466,3 +466,39 @@ func ForgotPasswordDBHandler(emailId string) error {
 	err = d.DialAndSend(m)
 	return nil
 }
+
+func ResetPasswordDbHandler(token, newPassword string) error {
+
+	bytes, err := hex.DecodeString(token)
+	if err != nil {
+		return utils.ErrorHandler(err, "Internal error")
+	}
+	hashedToken := sha256.Sum256(bytes)
+	hashedTokenString := hex.EncodeToString(hashedToken[:])
+
+	db, err := ConnectDb()
+	if err != nil {
+		return utils.ErrorHandler(err, "Internal Error")
+	}
+	defer db.Close()
+
+	var user models.Exec
+	query := "SELECT id, email FROM execs WHERE password_reset_token = ? AND password_token_expires > ?"
+	err = db.QueryRow(query, hashedTokenString, time.Now().Format(time.RFC3339)).Scan(&user.ID, &user.Email)
+	if err != nil {
+		return utils.ErrorHandler(err, "Invalid or expired reset code")
+	}
+
+	// Hash the new password
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return utils.ErrorHandler(err, "Internal error")
+	}
+
+	updateQuery := "UPDATE execs SET password = ?, password_reset_token = NULL, password_token_expires = NULL, password_changed_at = ? WHERE id = ?"
+	_, err = db.Exec(updateQuery, hashedPassword, time.Now().Format(time.RFC3339), user.ID)
+	if err != nil {
+		return utils.ErrorHandler(err, "Internal error")
+	}
+	return nil
+}
