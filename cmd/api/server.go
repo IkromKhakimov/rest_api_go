@@ -38,18 +38,18 @@ func main() {
 
 	//rl := mw.NewRateLimiter(5, time.Minute)
 	//
-	//hppOptions := mw.HPPOptions{
-	//	CheckQuery:                  true,
-	//	CheckBody:                   true,
-	//	CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
-	//	Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
-	//}
+	hppOptions := mw.HPPOptions{
+		CheckQuery:                  true,
+		CheckBody:                   true,
+		CheckBodyOnlyForContentType: "application/x-www-form-urlencoded",
+		Whitelist:                   []string{"sortBy", "sortOrder", "name", "age", "class"},
+	}
 
 	//secureMux := mw.Hpp(hppOptions)(rl.Middleware(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mux))))
 	//secureMux := utils.ApplyMiddlewares((mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware)
 	router := router.MainRouter()
 	jwtMiddleware := mw.MiddlewaresExcludePaths(mw.JWTMiddleware, "/execs/login", "/execs/forgotpassword", "/execs/resetpassword/reset/")
-	secureMux := jwtMiddleware(mw.SecurityHeaders(router))
+	secureMux := utils.ApplyMiddlewares(router, jwtMiddleware, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware)
 	//secureMux := mw.SecurityHeaders(router)
 
 	server := &http.Server{
