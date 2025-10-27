@@ -2,38 +2,74 @@ package main
 
 import (
 	"crypto/tls"
+	"embed"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	mw "restapi/internal/api/middlewares"
 	"restapi/internal/api/router"
-	"restapi/internal/repository/sqlconnect"
 	"restapi/pkg/utils"
 
 	"github.com/joho/godotenv"
 )
 
-func main() {
+//go:embed .env
+var envFile embed.FS
 
-	err := godotenv.Load()
+func loadEnvFromEmbeddedFile() {
+	// Read the embedded .env file
+	content, err := envFile.ReadFile(".env")
 	if err != nil {
-		return
+		log.Fatalf("Error reading .env file: %v", err)
 	}
-	_, err = sqlconnect.ConnectDb()
+
+	// Create a temp file to load the env vars
+	tempFile, err := os.CreateTemp("", ".env")
 	if err != nil {
-		utils.ErrorHandler(err, "")
-		fmt.Println("Error:", err)
-		return
+		log.Fatalf("Error creating .env file: %v", err)
 	}
+	defer os.Remove(tempFile.Name())
+
+	// Write content of the embedded .env file to the time file
+	_, err = tempFile.Write(content)
+	if err != nil {
+		log.Fatalf("Error writing .env file: %v", err)
+	}
+	err = tempFile.Close()
+	if err != nil {
+		log.Fatalf("Error closing .env file: %v", err)
+	}
+
+	// Load env vars from the temp file
+	err = godotenv.Load(tempFile.Name())
+	if err != nil {
+		log.Fatalf("Error closing .env file: %v", err)
+	}
+}
+
+func main() {
+	// Only in production, for running source
+	//err := godotenv.Load()
+	//if err != nil {
+	//	return
+	//}
+
+	// Load environment variables from the embedded .env file
+	loadEnvFromEmbeddedFile()
+
+	fmt.Println("Environment variable CERT_FILE:", os.Getenv("CERT"))
 
 	port := os.Getenv("API_PORT")
 
-	cert := "cert.pem"
-	key := "key.pem"
+	//cert := "cert.pem"
+	//key := "key.pem"
+
+	cert := os.Getenv("CERT_FILE")
+	key := os.Getenv("KEY_FILE")
 
 	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
+		MinVersion: tls.VersionTLS10,
 	}
 
 	//rl := mw.NewRateLimiter(5, time.Minute)
@@ -59,7 +95,7 @@ func main() {
 	}
 
 	fmt.Println("Server is running on port: ", port)
-	err = server.ListenAndServeTLS(cert, key)
+	err := server.ListenAndServeTLS(cert, key)
 	if err != nil {
 		log.Fatalln("Error starting server:", err)
 	}
